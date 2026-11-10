@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://perkle123.github.io/money-tools/sitemap.xml
