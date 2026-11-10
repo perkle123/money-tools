@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Savings Goal Calculator – How Much to Save per Month (Free)</title>
+<meta name="description" content="Free savings goal calculator. Find out how much you need to save each month to reach your goal by a date, or how long it takes with your current monthly savings.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top"><div class="in"><a class="brand" href="index.html">💰 Money Tools</a>
+<nav><a href="budget-calculator.html">50/30/20 Budget</a><a href="debt-payoff-calculator.html">Debt Payoff</a><a href="savings-goal-calculator.html">Savings Goal</a><a href="52-week-savings-challenge.html">52-Week Challenge</a></nav></div></header>
+<main>
+<h1>Savings Goal Calculator</h1>
+<p class="lead">Emergency fund, holiday, house deposit? Find out exactly how much to save each month – or how long it will take.</p>
+<div class="card">
+ <div class="grid">
+  <div><label for="goal">Savings goal</label><input id="goal" inputmode="decimal" value="5000"></div>
+  <div><label for="have">Already saved</label><input id="have" inputmode="decimal" value="500"></div>
+  <div><label for="rate">Interest rate % per year (optional)</label><input id="rate" inputmode="decimal" value="2"></div>
+  <div><label for="mode">I want to know…</label><select id="mode"><option value="date">How much to save per month to reach it by a date</option><option value="monthly">How long it takes if I save a fixed amount</option></select></div>
+  <div id="dateBox"><label for="date">Target date</label><input id="date" type="month"></div>
+  <div id="monthlyBox" hidden><label for="monthly">I can save per month</label><input id="monthly" inputmode="decimal" value="250"></div>
+ </div>
+</div>
+<div class="card" id="out"></div>
+<div class="cta"><h2>Saving for more than one thing?</h2><p>The Savings Goals Tracker (Excel & Google Sheets) tracks up to 12 goals with progress bars, a deposit log and "save per month" for each goal.</p><a class="btn" href="https://payhip.com/b/KJDa3">Get the Savings Goals Tracker →</a></div>
+<div class="prose">
+<h2>Tips to reach your savings goal faster</h2>
+<ul><li><strong>Automate it:</strong> set up an automatic transfer to a separate savings account on payday.</li>
+<li><strong>Name the account</strong> after the goal ("Japan 2027") – it's much harder to dip into.</li>
+<li><strong>Round up:</strong> save every raise, refund and bonus before you get used to spending it.</li>
+<li><strong>Start with an emergency fund</strong> of 1–3 months of expenses so surprises don't end up on a credit card.</li></ul>
+</div>
+</main>
+<footer>© <span id="yr"></span> Money Tools. For planning purposes only, not financial advice. Templates: <a href="https://payhip.com/jessistore">payhip.com/jessistore</a></footer>
+<script src="common.js"></script>
+<script>
+const d0=new Date(); const def=new Date(d0.getFullYear()+1,d0.getMonth(),1);
+$('#date').value=`${def.getFullYear()}-${String(def.getMonth()+1).padStart(2,'0')}`;
+function grow(have,monthly,r,months){let b=have;for(let i=0;i<months;i++){b=b*(1+r)+monthly;}return b;}
+function calc(){
+  const goal=num($('#goal').value),have=num($('#have').value),r=num($('#rate').value)/100/12,mode=$('#mode').value;
+  $('#dateBox').hidden=mode!=='date';$('#monthlyBox').hidden=mode!=='monthly';
+  const need=Math.max(0,goal-have); let html='';
+  if(need<=0){$('#out').innerHTML='<p class="good"><strong>🎉 You have already reached this goal!</strong></p>';return;}
+  if(mode==='date'){
+    const [y,m]=$('#date').value.split('-').map(Number); const months=(y-d0.getFullYear())*12+(m-1-d0.getMonth());
+    if(!(months>0)){$('#out').innerHTML='<p class="bad">Pick a target date in the future.</p>';return;}
+    let lo=0,hi=goal;for(let k=0;k<60;k++){const mid=(lo+hi)/2;grow(have,mid,r,months)>=goal?hi=mid:lo=mid;}
+    const per=hi,interest=goal-have-per*months;
+    html=`<div class="kpis"><div class="kpi"><div class="l">Save per month</div><div class="v">${money(per)}</div></div>
+      <div class="kpi"><div class="l">Per week (approx.)</div><div class="v">${money(per*12/52)}</div></div>
+      <div class="kpi"><div class="l">Months to go</div><div class="v">${months}</div></div>
+      <div class="kpi"><div class="l">Interest earned</div><div class="v">${money(Math.max(0,interest))}</div></div></div>`;
+    store('sg',{goal,have,rate:$('#rate').value,mode,date:$('#date').value});
+  }else{
+    const mo=num($('#monthly').value);
+    if(mo<=0&&r<=0){$('#out').innerHTML='<p class="bad">Enter how much you can save per month.</p>';return;}
+    let b=have,n=0;while(b<goal&&n<1200){b=b*(1+r)+mo;n++;}
+    if(n>=1200){$('#out').innerHTML='<p class="bad">At this rate it would take more than 100 years. Try a higher monthly amount.</p>';return;}
+    const done=addMonths(d0,n);
+    html=`<div class="kpis"><div class="kpi"><div class="l">Goal reached in</div><div class="v">${n} months</div></div>
+      <div class="kpi"><div class="l">Goal date</div><div class="v" style="font-size:20px">${monthName(done)}</div></div>
+      <div class="kpi"><div class="l">Interest earned</div><div class="v">${money(Math.max(0,b-have-mo*n))}</div></div></div>
+      <p>Saving ${money(mo*1.25)} instead (+25%) would get you there in <strong>${(()=>{let b2=have,k=0;while(b2<goal&&k<1200){b2=b2*(1+r)+mo*1.25;k++;}return k;})()} months</strong>.</p>`;
+    store('sg',{goal,have,rate:$('#rate').value,mode,monthly:mo});
+  }
+  const pct=Math.min(100,have/goal*100);
+  $('#out').innerHTML=html+`<p style="margin:10px 0 6px;font-size:14px;color:var(--mut)">Progress today: ${pct.toFixed(0)}%</p><div class="bar"><i style="width:${pct}%"></i></div>`;
+}
+const s=store('sg'); if(s){$('#goal').value=s.goal;$('#have').value=s.have;$('#rate').value=s.rate;$('#mode').value=s.mode;if(s.date)$('#date').value=s.date;if(s.monthly)$('#monthly').value=s.monthly;}
+document.querySelectorAll('input,select').forEach(e=>e.addEventListener('input',calc)); calc();
+</script>
+</body></html>

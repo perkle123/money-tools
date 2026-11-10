@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>50/30/20 Budget Calculator (Free) – Needs, Wants & Savings</title>
+<meta name="description" content="Free 50/30/20 budget calculator. Enter your monthly take-home pay to get your needs, wants and savings targets, then compare with what you actually spend.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top"><div class="in"><a class="brand" href="index.html">💰 Money Tools</a>
+<nav><a href="budget-calculator.html">50/30/20 Budget</a><a href="debt-payoff-calculator.html">Debt Payoff</a><a href="savings-goal-calculator.html">Savings Goal</a><a href="52-week-savings-challenge.html">52-Week Challenge</a></nav></div></header>
+<main>
+<h1>50/30/20 Budget Calculator</h1>
+<p class="lead">Enter your monthly income after tax. Optionally add what you really spend to see if your budget is balanced.</p>
+<div class="card">
+ <div class="grid">
+  <div><label for="inc">Monthly take-home pay</label><input id="inc" inputmode="decimal" value="2500"></div>
+  <div><label for="sn">Rule</label><select id="sn"><option value="50,30,20">50 / 30 / 20 (classic)</option><option value="60,20,20">60 / 20 / 20 (high rent)</option><option value="70,20,10">70 / 20 / 10</option><option value="40,30,30">40 / 30 / 30 (aggressive saver)</option></select></div>
+ </div>
+</div>
+<div class="card">
+ <div class="kpis" id="targets"></div>
+ <h3 style="margin:6px 0 10px">What do you actually spend? <span style="font-weight:400;color:var(--mut);font-size:14px">(optional)</span></h3>
+ <div class="grid">
+  <div><label for="an">Needs (rent, bills, food, transport)</label><input id="an" inputmode="decimal" placeholder="e.g. 1400"></div>
+  <div><label for="aw">Wants (fun, eating out, shopping)</label><input id="aw" inputmode="decimal" placeholder="e.g. 500"></div>
+  <div><label for="as">Savings & extra debt payments</label><input id="as" inputmode="decimal" placeholder="e.g. 300"></div>
+ </div>
+ <div id="cmp" style="margin-top:16px"></div>
+</div>
+<div class="cta"><h2>Turn this into a real monthly budget</h2><p>Download the free 50/30/20 spreadsheet, or track every category month by month with the Monthly Budget Tracker for Excel & Google Sheets.</p><a class="btn" href="https://payhip.com/b/48Mfo">Get the free spreadsheet →</a> &nbsp; <a class="btn" href="https://payhip.com/b/DOisQ">Monthly Budget Tracker →</a></div>
+<div class="prose">
+<h2>What is the 50/30/20 rule?</h2>
+<p>The 50/30/20 rule splits your income after tax into three buckets: <strong>50% for needs</strong> (housing, utilities, groceries, transport, insurance and minimum loan payments), <strong>30% for wants</strong> (eating out, hobbies, streaming, shopping, holidays) and <strong>20% for savings and debt payoff</strong> (emergency fund, savings goals, investing and extra payments on debt).</p>
+<h2>What if my needs are more than 50%?</h2>
+<p>That's common when rent is high. Use a 60/20/20 split instead and look at your biggest fixed costs one by one – switching electricity, phone or insurance providers often frees up money quickly.</p>
+<h2>Where do loan payments go?</h2>
+<p>Minimum payments count as needs. Anything extra you pay to get out of debt faster belongs in the savings & debt bucket. Try the <a href="debt-payoff-calculator.html">debt payoff calculator</a> to see how much faster you'd be debt-free.</p>
+</div>
+</main>
+<footer>© <span id="yr"></span> Money Tools. For planning purposes only, not financial advice. Templates: <a href="https://payhip.com/jessistore">payhip.com/jessistore</a></footer>
+<script src="common.js"></script>
+<script>
+function calc(){
+  const inc=num($('#inc').value); const [n,w,s]=$('#sn').value.split(',').map(Number);
+  const t={needs:inc*n/100,wants:inc*w/100,save:inc*s/100};
+  $('#targets').innerHTML=`<div class="kpi"><div class="l">Needs (${n}%)</div><div class="v">${money(t.needs)}</div></div>
+   <div class="kpi"><div class="l">Wants (${w}%)</div><div class="v">${money(t.wants)}</div></div>
+   <div class="kpi"><div class="l">Savings & debt (${s}%)</div><div class="v">${money(t.save)}</div></div>`;
+  const a={needs:$('#an').value,wants:$('#aw').value,save:$('#as').value};
+  if(!a.needs&&!a.wants&&!a.save){$('#cmp').innerHTML='';return;}
+  const rows=[['Needs','needs',false],['Wants','wants',false],['Savings & debt','save',true]].map(([lab,k,more])=>{
+    const act=num(a[k]),tg=t[k],pct=tg?act/tg:0,diff=act-tg;
+    const ok=more?act>=tg:act<=tg;
+    const msg=more?(ok?'On target 🎉':`Save ${money(-diff)} more if you can`):(ok?`On target (${money(-diff)} under)`:`Over by ${money(diff)}`);
+    return `<tr><td>${lab}</td><td class="n">${money(act)}</td><td class="n">${money(tg)}</td><td style="width:30%"><div class="bar"><i style="width:${Math.min(100,pct*100)}%;background:${ok?'var(--acc)':'var(--warn)'}"></i></div></td><td class="${ok?'good':'bad'}">${msg}</td></tr>`;}).join('');
+  const left=inc-num(a.needs)-num(a.wants)-num(a.save);
+  $('#cmp').innerHTML=`<div class="scroll"><table><tr><th>Bucket</th><th class="n">You spend</th><th class="n">Target</th><th></th><th>Status</th></tr>${rows}</table></div>
+   <p style="margin:12px 0 0">Unassigned money left: <strong class="${left<0?'bad':'good'}">${money(left)}</strong>${left>0?' – give it a job: savings or extra debt payments.':left<0?' – you are spending more than you earn.':''}</p>`;
+  store('b5030',{inc:$('#inc').value,sn:$('#sn').value,...a});
+}
+const sv=store('b5030'); if(sv){$('#inc').value=sv.inc;$('#sn').value=sv.sn;$('#an').value=sv.needs||'';$('#aw').value=sv.wants||'';$('#as').value=sv.save||'';}
+document.querySelectorAll('input,select').forEach(e=>e.addEventListener('input',calc)); calc();
+</script>
+</body></html>

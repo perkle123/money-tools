@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Debt Payoff Calculator – Snowball vs Avalanche (Free)</title>
+<meta name="description" content="Free debt payoff calculator. Compare the debt snowball and debt avalanche methods, find your debt-free date, total interest and a month-by-month payoff plan.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top"><div class="in"><a class="brand" href="index.html">💰 Money Tools</a>
+<nav><a href="budget-calculator.html">50/30/20 Budget</a><a href="debt-payoff-calculator.html">Debt Payoff</a><a href="savings-goal-calculator.html">Savings Goal</a><a href="52-week-savings-challenge.html">52-Week Challenge</a></nav></div></header>
+<main>
+<h1>Debt Payoff Calculator: Snowball vs Avalanche</h1>
+<p class="lead">Add your debts and how much extra you can pay each month. See your debt-free date and which method saves you the most.</p>
+<div class="card">
+ <div class="scroll"><table id="debts"><thead><tr><th>Debt</th><th>Balance</th><th>Interest % (APR)</th><th>Min. payment / month</th><th></th></tr></thead><tbody></tbody></table></div>
+ <p><button id="add">+ Add debt</button></p>
+ <div class="grid">
+  <div><label for="extra">Extra payment per month</label><input id="extra" inputmode="decimal" value="150"></div>
+  <div><label for="method">Method</label><select id="method"><option value="snow">Snowball – smallest balance first</option><option value="aval">Avalanche – highest interest first</option></select></div>
+ </div>
+</div>
+<div class="card" id="out"></div>
+<div class="cta"><h2>Keep your plan on track every month</h2><p>The Debt Payoff Planner spreadsheet (Excel & Google Sheets) gives you this plan for up to 10 debts, a 20-year payment schedule and a chart of your debt going down.</p><a class="btn" href="https://payhip.com/b/byRs6">Get the Debt Payoff Planner →</a></div>
+<div class="prose">
+<h2>Debt snowball vs debt avalanche</h2>
+<p>With both methods you pay the minimum on every debt and put all extra money on one target debt. When it's paid off, its whole payment rolls into the next debt – so your payment grows like a snowball.</p>
+<p><strong>Snowball</strong> targets the smallest balance first. You get quick wins, which keeps you motivated. <strong>Avalanche</strong> targets the highest interest rate first, which is mathematically cheapest. The calculator above shows you the difference for your own debts.</p>
+<h2>How accurate is this?</h2>
+<p>Interest is calculated monthly (APR / 12). Real lenders may calculate daily interest or add fees, so treat the result as a close estimate.</p>
+</div>
+</main>
+<footer>© <span id="yr"></span> Money Tools. For planning purposes only, not financial advice. Templates: <a href="https://payhip.com/jessistore">payhip.com/jessistore</a></footer>
+<script src="common.js"></script>
+<script>
+const defaults=[{n:'Credit card',b:2400,r:21.9,m:60},{n:'Store card',b:650,r:26.9,m:25},{n:'Car loan',b:8900,r:6.5,m:210},{n:'Personal loan',b:3200,r:11,m:95}];
+let debts=store('debts')||defaults;
+function rowHtml(d,i){return `<tr><td><input data-i="${i}" data-k="n" value="${d.n||''}"></td><td><input data-i="${i}" data-k="b" inputmode="decimal" value="${d.b??''}"></td><td><input data-i="${i}" data-k="r" inputmode="decimal" value="${d.r??''}"></td><td><input data-i="${i}" data-k="m" inputmode="decimal" value="${d.m??''}"></td><td><button class="row-del" data-del="${i}" title="Remove">×</button></td></tr>`;}
+function render(){ $('#debts tbody').innerHTML=debts.map(rowHtml).join(''); calc(); }
+function simulate(list,extra,method){
+  let ds=list.map((d,i)=>({i,n:d.n||`Debt ${i+1}`,b:num(d.b),r:num(d.r)/100/12,m:num(d.m),paid:null,int:0})).filter(d=>d.b>0);
+  if(!ds.length) return null;
+  const budget=ds.reduce((s,d)=>s+d.m,0)+extra; let month=0,totInt=0; const hist=[];
+  while(ds.some(d=>d.b>0.005)&&month<600){
+    month++;
+    ds.forEach(d=>{if(d.b>0){const it=d.b*d.r;d.b+=it;d.int+=it;totInt+=it;}});
+    let left=budget;
+    ds.forEach(d=>{if(d.b>0){const p=Math.min(d.m,d.b);d.b-=p;left-=p;}});
+    const order=ds.filter(d=>d.b>0.005).sort((a,b)=>method==='aval'?(b.r-a.r)||(a.b-b.b):(a.b-b.b)||(b.r-a.r));
+    for(const d of order){if(left<=0)break;const p=Math.min(left,d.b);d.b-=p;left-=p;}
+    ds.forEach(d=>{if(d.b<=0.005&&d.paid===null){d.b=0;d.paid=month;}});
+    hist.push(ds.reduce((s,d)=>s+d.b,0));
+    if(month===1&&ds.every(d=>d.b>0)&&budget<=ds.reduce((s,d)=>s+d.b*d.r,0)) return {stuck:true};
+  }
+  return {month,totInt,ds,hist,stuck:month>=600};
+}
+function calc(){
+  store('debts',debts);
+  const extra=num($('#extra').value),method=$('#method').value;
+  const a=simulate(debts,extra,method),other=simulate(debts,extra,method==='snow'?'aval':'snow');
+  if(!a){$('#out').innerHTML='<p>Add at least one debt with a balance.</p>';return;}
+  if(a.stuck){$('#out').innerHTML='<p class="bad"><strong>Your payments don\'t cover the interest.</strong> Increase the minimum or extra payment – otherwise the debt will never be paid off.</p>';return;}
+  const start=new Date(); const free=addMonths(start,a.month);
+  const total=debts.reduce((s,d)=>s+num(d.b),0);
+  const diff=other&&!other.stuck?other.totInt-a.totInt:0;
+  const noExtra=simulate(debts,0,method);
+  const saved=noExtra&&!noExtra.stuck?noExtra.totInt-a.totInt:null;
+  const max=Math.max(...a.hist,1);
+  const bars=a.hist.filter((_,i)=>i%Math.max(1,Math.ceil(a.hist.length/48))===0).map(v=>`<i style="flex:1;align-self:flex-end;height:${Math.max(2,v/max*100)}%;background:var(--acc);border-radius:2px 2px 0 0"></i>`).join('');
+  $('#out').innerHTML=`<div class="kpis">
+   <div class="kpi"><div class="l">Debt-free in</div><div class="v">${a.month} months</div></div>
+   <div class="kpi"><div class="l">Debt-free date</div><div class="v" style="font-size:20px">${monthName(free)}</div></div>
+   <div class="kpi"><div class="l">Total interest</div><div class="v">${money0(a.totInt)}</div></div>
+   <div class="kpi"><div class="l">Total debt now</div><div class="v">${money0(total)}</div></div></div>
+   <p>${diff>1?`✅ This method saves <strong>${money0(diff)}</strong> in interest compared with ${method==='snow'?'avalanche':'snowball'}.`:diff<-1?`💡 The ${method==='snow'?'avalanche':'snowball'} method would save <strong>${money0(-diff)}</strong> more in interest${other.month!==a.month?` and finish in ${other.month} months`:''}.`:'Both methods cost about the same for your debts – pick the one that keeps you motivated.'}
+   ${saved&&saved>1&&extra>0?`<br>💰 Paying ${money0(extra)} extra per month saves you <strong>${money0(saved)}</strong> in interest and ${noExtra.month-a.month} months.`:''}</p>
+   <div style="display:flex;gap:2px;height:120px;margin:14px 0 4px;padding-bottom:2px;border-bottom:1px solid var(--line)">${bars}</div>
+   <p style="margin:0 0 14px;font-size:13px;color:var(--mut)">Total debt remaining, month by month</p>
+   <div class="scroll"><table><tr><th>Order</th><th>Debt</th><th class="n">Paid off in</th><th>Date</th><th class="n">Interest paid</th></tr>
+   ${a.ds.slice().sort((x,y)=>x.paid-y.paid).map((d,k)=>`<tr><td>${k+1}</td><td>${d.n}</td><td class="n">${d.paid} mo</td><td>${monthName(addMonths(start,d.paid))}</td><td class="n">${money(d.int)}</td></tr>`).join('')}</table></div>`;
+}
+document.addEventListener('input',e=>{const t=e.target;if(t.dataset.i!==undefined){debts[t.dataset.i][t.dataset.k]=t.value;calc();}else if(t.id==='extra'||t.id==='method')calc();});
+document.addEventListener('click',e=>{if(e.target.dataset.del!==undefined){debts.splice(+e.target.dataset.del,1);render();}if(e.target.id==='add'){debts.push({n:'',b:'',r:'',m:''});render();}});
+render();
+</script>
+</body></html>
